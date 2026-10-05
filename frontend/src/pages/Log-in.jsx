@@ -14,6 +14,7 @@ export default function Login() {
 
   const handleLogin = async (event) => {
     event.preventDefault();
+    if (loading) return;
     setError("");
 
     const identifier = email.trim();

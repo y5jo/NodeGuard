@@ -12,11 +12,13 @@ const chainOfCustodyLogSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'EvidenceFile',
       default: null,
+      index: true,
     },
     performedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,
+      index: true,
     },
     action: {
       type: String,
@@ -29,9 +31,11 @@ const chainOfCustodyLogSchema = new mongoose.Schema(
         'VERIFY_FAIL',
         'STATUS_CHANGE',
         'CASE_ASSIGNMENT',
+        'CUSTODY_TRANSFER',
         'NOTE_ADDED',
         'DOSSIER_EXPORT',
       ],
+      index: true,
     },
     details: {
       type: String,
@@ -51,12 +55,25 @@ const chainOfCustodyLogSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
       immutable: true,
+      index: true,
     },
   },
   {
     timestamps: false,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
   }
 );
+
+chainOfCustodyLogSchema.virtual('evidenceId')
+  .get(function () {
+    return this.evidenceFileId;
+  })
+  .set(function (value) {
+    this.evidenceFileId = value;
+  });
+
+chainOfCustodyLogSchema.index({ incidentId: 1, timestamp: -1 });
 
 const IMMUTABLE_OPERATIONS = [
   'updateOne',

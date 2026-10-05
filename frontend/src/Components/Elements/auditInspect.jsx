@@ -1,4 +1,5 @@
 
+import { useEffect } from 'react';
 import { ActionBadge, RoleBadge } from '../../pages/Admin/AuditLog';
 import '../design/Admin/AuditLogInspectorModal.css';
  
@@ -16,6 +17,13 @@ export const DEFAULT_LOG_ENTRY = {
 };
  
 export function AuditLogInspectorModal({ entry, onClose }) {
+	useEffect(() => {
+		if (!entry) return;
+		const handleEscape = (event) => { if (event.key === 'Escape') onClose(); };
+		document.addEventListener('keydown', handleEscape);
+		return () => document.removeEventListener('keydown', handleEscape);
+	}, [entry, onClose]);
+
 	if (!entry) return null;
 	const e = { ...DEFAULT_LOG_ENTRY, ...entry };
  

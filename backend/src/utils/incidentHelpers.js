@@ -4,14 +4,17 @@ export const ALLOWED_STATUSES = [
   'Investigating',
   'Resolved',
   'Closed',
+  'OPEN',
+  'IN_PROGRESS',
+  'CONTAINED',
+  'CLOSED',
 ];
 
-export const buildIncidentFilter = (query) => {
-  const { category, status, priority } = query;
+export const buildIncidentFilter = (query = {}) => {
   const filter = {};
-  if (category) filter.category = category;
-  if (status) filter.status = status;
-  if (priority) filter.priority = priority;
+  if (query.category) filter.category = query.category;
+  if (query.status) filter.status = query.status;
+  if (query.priority) filter.priority = query.priority;
   return filter;
 };
 

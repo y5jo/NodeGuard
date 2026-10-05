@@ -1,10 +1,8 @@
 import mongoose from 'mongoose';
 
 const connectDB = async () => {
-  const mongoURI = process.env.MONGO_URI || 'mongodb://localhost:27017/nodeguard';
-
   try {
-    const conn = await mongoose.connect(mongoURI);
+    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/nodeguard');
     console.log(`[Database] MongoDB Connected: ${conn.connection.host}`);
     return conn;
   } catch (error) {

@@ -59,7 +59,7 @@ nodeguard/
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/uno-jerome/NodeGuard.git
+git clonehttps://github.com/y5jo/NodeGuard.git
 cd NodeGuard
 ```
 
@@ -83,17 +83,6 @@ net start MongoDB
 ```bash
 sudo systemctl start mongod
 ```
-
-**macOS (Homebrew):**
-```bash
-brew services start mongodb-community
-```
-
-**Docker (any platform):**
-```bash
-docker run -d -p 27017:27017 --name mongodb mongo:latest
-```
-
 ---
 
 ### Step 3: Install & Seed
@@ -101,7 +90,7 @@ docker run -d -p 27017:27017 --name mongodb mongo:latest
 From the **project root**, install all dependencies and fill the database:
 
 ```bash
-# 1. Install root runner dependencies (concurrently)
+# 1. Install dependencies (concurrently)
 npm install
 
 # 2. Install backend and frontend dependencies
@@ -119,33 +108,15 @@ npm run seed
 
 > `npm run seed` wipes and re-creates the database with two pre-built sample cases
 > (including evidence files copied from `backend/samples/`) every time it is run.
-> It is a **developer utility only** - never run it in production.
 
 ---
 
 ### Step 4: Run the Project
 
-#### Option A - Both services at once (recommended)
-
-From the **project root**, start backend `:5000` and frontend `:5173` simultaneously in a single terminal:
-
 ```bash
 npm run dev
 ```
 
-#### Option B - Separate terminals
-
-**Terminal 1 - Backend:**
-```bash
-cd backend
-npm run dev    # http://localhost:5000
-```
-
-**Terminal 2 - Frontend:**
-```bash
-cd frontend
-npm run dev   # http://localhost:5173
-```
 
 > **Windows PowerShell Tip:** If script execution is restricted (`npm.ps1 cannot be loaded`), either run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` or invoke commands using `npm.cmd` (e.g., `npm.cmd run dev`).
 

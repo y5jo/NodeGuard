@@ -21,8 +21,9 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['ADMIN', 'INVESTIGATOR'],
+      enum: ['ADMIN', 'INVESTIGATOR', 'ANALYST'],
       default: 'INVESTIGATOR',
+      index: true,
     },
     isActive: {
       type: Boolean,

@@ -9,7 +9,7 @@ if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-const ALLOWED_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.pdf', '.docx', '.pcap', '.eml']);
+const ALLOWED_EXTENSIONS = /\.(png|jpg|jpeg|pdf|docx|pcap|eml|txt|csv|log|zip)$/i;
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -22,9 +22,8 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const ext = path.extname(file.originalname).toLowerCase();
-  if (!ALLOWED_EXTENSIONS.has(ext)) {
-    return cb(new Error(`File type not permitted. Allowed types: ${[...ALLOWED_EXTENSIONS].join(', ')}`), false);
+  if (!ALLOWED_EXTENSIONS.test(file.originalname || '')) {
+    return cb(new Error('File type not permitted.'), false);
   }
   cb(null, true);
 };
@@ -33,7 +32,7 @@ export const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50 MB
+    fileSize: 50 * 1024 * 1024,
     files: 10,
   },
 });

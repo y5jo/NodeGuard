@@ -7,7 +7,7 @@ const bookmark = provisionLogo;
 const nameOf = ({ name, email }) => name?.trim() || email.split('@')[0];
 
 
-export function SessionProvisioningLog({ entries, onRemove, removingStaffId = "" }) {
+export function SessionProvisioningLog({ entries, onRemove, removingStaffId = "", isLoading = false }) {
   const [selected, setSelected] = useState(null);
   const toggle = (id) => setSelected((cur) => (cur === id ? null : id));
  
@@ -19,7 +19,9 @@ export function SessionProvisioningLog({ entries, onRemove, removingStaffId = ""
         <span>{entries.length} added</span>
       </header>
  
-      {entries.length === 0 ? (
+      {isLoading ? (
+        <p className="empty">Loading staff accounts...</p>
+      ) : entries.length === 0 ? (
         <p className="empty">No staff added yet</p>
       ) : (
         <ul>
@@ -67,14 +69,4 @@ export function SessionProvisioningLog({ entries, onRemove, removingStaffId = ""
   );
 }
  
-export function StaffToast({ toast, onClose }) {
-  return (
-    <div className={`spl-toast ${toast ? 'show' : ''} ${toast?.type ?? ''}`} onClick={onClose} role="status">
-      {toast && (
-        <>
-          <b>{nameOf(toast.entry)}</b> {toast.type === 'added' ? 'was added to' : 'was removed from'} the session log
-        </>
-      )}
-    </div>
-  );
-}
+ 

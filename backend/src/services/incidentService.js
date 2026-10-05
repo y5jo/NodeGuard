@@ -4,7 +4,7 @@ import ChainOfCustodyLog from '../models/ChainOfCustodyLog.js';
 import { computeFileHashes } from './forensicService.js';
 import { generateTrackingId } from '../utils/trackingIdGenerator.js';
 
-export const registerPublicIncident = async (data, files, ipAddress) => {
+export const registerPublicIncident = async (data, files, ipAddress, user = null) => {
   const trackingId = generateTrackingId();
 
   let complainantEmail = data.complainantEmail || '';
@@ -12,6 +12,9 @@ export const registerPublicIncident = async (data, files, ipAddress) => {
   if (!complainantEmail && complainantContact.includes('@')) {
     complainantEmail = complainantContact.trim().toLowerCase();
   }
+
+  const priority = data.priority || data.severity || 'MEDIUM';
+  const reporterId = user?.id || data.reportedBy || null;
 
   const incident = new Incident({
     trackingId,
@@ -27,6 +30,8 @@ export const registerPublicIncident = async (data, files, ipAddress) => {
     complainantName: data.complainantName || 'Anonymous',
     complainantEmail,
     complainantContact,
+    priority,
+    reportedBy: reporterId,
   });
 
   const evidenceUploads = Array.isArray(files) ? files : files ? [files] : [];
@@ -40,6 +45,7 @@ export const registerPublicIncident = async (data, files, ipAddress) => {
       mimeType: file.mimetype,
       sha256Hash: hashes.sha256,
       md5Hash: hashes.md5,
+      uploadedBy: reporterId,
     });
     incident.evidenceFiles.push(evidenceFile._id);
     return { file, evidenceFile, hashes };
@@ -51,7 +57,7 @@ export const registerPublicIncident = async (data, files, ipAddress) => {
   await Promise.all(custodyRecords.map((record) => ChainOfCustodyLog.create({
     incidentId: incident._id,
     evidenceFileId: record?.evidenceFile._id || null,
-    performedBy: null,
+    performedBy: reporterId,
     action: 'INGESTION',
     details: record
       ? `Public incident created with initial evidence: ${record.file.originalname}`

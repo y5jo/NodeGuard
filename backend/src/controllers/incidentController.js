@@ -11,7 +11,7 @@ export const createPublicIncident = async (req, res) => {
     if (!title || !category || !narrative) {
       return res.status(400).json({ success: false, message: 'Title, category, and narrative are required.' });
     }
-    const { trackingId } = await registerPublicIncident(req.body, req.files, req.ip);
+    const { trackingId } = await registerPublicIncident(req.body, req.files, req.ip, req.user);
     return res.status(201).json({ success: true, trackingId });
   } catch (error) {
     return res.status(500).json({ success: false, message: `Failed to create incident: ${error.message}` });
@@ -34,18 +34,30 @@ export const getIncidents = async (req, res) => {
   try {
     const { page = 1, limit = 10 } = req.query;
     const filter = buildIncidentFilter(req.query);
-    if (req.user.role === 'INVESTIGATOR') filter.assignedTo = req.user.id;
+
+    if (['INVESTIGATOR', 'ANALYST'].includes(req.user?.role)) {
+      filter.assignedTo = req.user.id;
+    }
+
     const skip = (Number(page) - 1) * Number(limit);
     const [incidents, total] = await Promise.all([
       Incident.find(filter)
-        .populate('assignedTo', 'name email role')
+        .populate({ path: 'assignedTo', match: { isActive: true }, select: 'name email role' })
+        .populate('reportedBy', 'name email role')
         .populate('evidenceFiles', 'originalFilename fileSize mimeType sha256Hash md5Hash verificationStatus verifiedAt')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit)),
       Incident.countDocuments(filter),
     ]);
-    return res.status(200).json({ success: true, incidents, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+
+    return res.status(200).json({
+      success: true,
+      incidents,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / Number(limit)),
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -54,25 +66,45 @@ export const getIncidents = async (req, res) => {
 export const assignIncident = async (req, res) => {
   try {
     const { analystId } = req.body;
-    const analyst = await User.findOne({ _id: analystId, role: 'INVESTIGATOR', isActive: true });
+    const analyst = await User.findOne({ _id: analystId, role: { $in: ['INVESTIGATOR', 'ANALYST'] }, isActive: true });
     if (!analyst) return res.status(404).json({ success: false, message: 'Active analyst not found.' });
 
     const incident = await Incident.findById(req.params.id);
     if (!incident) return res.status(404).json({ success: false, message: 'Incident not found.' });
 
-    const previousAnalyst = incident.assignedTo;
-    incident.assignedTo = analyst._id;
-    await incident.save();
-    await ChainOfCustodyLog.create({
-      incidentId: incident._id,
-      evidenceFileId: null,
-      performedBy: req.user.id,
-      action: 'CASE_ASSIGNMENT',
-      details: `Case assigned to ${analyst.name} (${analyst.email}) by ${req.user.name || req.user.email}${previousAnalyst ? `; previous assignee: ${previousAnalyst}` : ''}`,
-      ipAddress: req.ip || '127.0.0.1',
-    });
+    const prevDoc = incident.assignedTo
+      ? await User.findOne({ _id: incident.assignedTo, isActive: true }, 'name email').lean()
+      : null;
 
-    await incident.populate('assignedTo', 'name email role');
+    incident.assignedTo = analyst._id;
+    const [logDetails, logAction] = prevDoc
+      ? [
+          `Custody transferred from ${prevDoc.name} (${prevDoc.email}) to ${analyst.name} (${analyst.email}) by Admin ${req.user.name || req.user.email}`,
+          'CUSTODY_TRANSFER',
+        ]
+      : [
+          `Case assigned to ${analyst.name} (${analyst.email}) by Admin ${req.user.name || req.user.email}`,
+          'CASE_ASSIGNMENT',
+        ];
+
+    await Promise.all([
+      incident.save(),
+      ChainOfCustodyLog.create({
+        incidentId: incident._id,
+        evidenceFileId: null,
+        performedBy: req.user.id,
+        action: logAction,
+        details: logDetails,
+        ipAddress: req.ip || '127.0.0.1',
+      }),
+    ]);
+
+    await incident.populate([
+      { path: 'assignedTo', match: { isActive: true }, select: 'name email role' },
+      { path: 'reportedBy', select: 'name email role' },
+      { path: 'evidenceFiles' },
+    ]);
+
     return res.status(200).json({ success: true, incident });
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message });
@@ -82,7 +114,8 @@ export const assignIncident = async (req, res) => {
 export const getIncidentById = async (req, res) => {
   try {
     const incident = await Incident.findById(req.params.id)
-      .populate('assignedTo', 'name email role')
+      .populate({ path: 'assignedTo', match: { isActive: true }, select: 'name email role' })
+      .populate('reportedBy', 'name email role')
       .populate('evidenceFiles');
     if (!incident) return res.status(404).json({ success: false, message: 'Incident not found.' });
 
@@ -102,6 +135,7 @@ export const updateStatus = async (req, res) => {
     if (!ALLOWED_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, message: `Invalid status. Must be one of: ${ALLOWED_STATUSES.join(', ')}` });
     }
+
     const incident = await Incident.findById(req.params.id);
     if (!incident) return res.status(404).json({ success: false, message: 'Incident not found.' });
 
@@ -117,6 +151,13 @@ export const updateStatus = async (req, res) => {
       details: `Status changed from "${previousStatus}" to "${status}" by ${req.user.name || req.user.email}`,
       ipAddress: req.ip || '127.0.0.1',
     });
+
+    await incident.populate([
+      { path: 'assignedTo', match: { isActive: true }, select: 'name email role' },
+      { path: 'reportedBy', select: 'name email role' },
+      { path: 'evidenceFiles' },
+    ]);
+
     return res.status(200).json({ success: true, incident });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -152,7 +193,8 @@ export const addNote = async (req, res) => {
 export const exportDossier = async (req, res) => {
   try {
     const incident = await Incident.findById(req.params.id)
-      .populate('assignedTo', 'name email role')
+      .populate({ path: 'assignedTo', match: { isActive: true }, select: 'name email role' })
+      .populate('reportedBy', 'name email role')
       .populate('evidenceFiles');
     if (!incident) return res.status(404).json({ success: false, message: 'Incident not found.' });
     if (!['Resolved', 'Closed'].includes(incident.status)) {
@@ -189,7 +231,7 @@ export const getAuditLog = async (req, res) => {
     id: log._id,
     action: log.action,
     actor: log.performedBy?.name ?? 'PUBLIC_ANONYMOUS',
-    role: log.performedBy?.role === 'ADMIN' ? 'Admin' : log.performedBy?.role === 'INVESTIGATOR' ? 'Investigator' : 'Client',
+    role: log.performedBy?.role === 'ADMIN' ? 'Admin' : ['INVESTIGATOR', 'ANALYST'].includes(log.performedBy?.role) ? 'Investigator' : 'Client',
     ip: log.ipAddress ?? '—',
     details: log.details,
     timestamp: log.timestamp,

@@ -54,7 +54,7 @@ app.use('/api/incidents', incidentRoutes);
 app.use('/api/evidence', evidenceRoutes);
 
 app.use((err, req, res, next) => {
-  const status = err.status || 500;
+  const status = err.status || (err.name === 'MulterError' ? 400 : 500);
   const message =
     process.env.NODE_ENV === 'production' && status === 500
       ? 'An internal server error occurred.'

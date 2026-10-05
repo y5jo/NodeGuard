@@ -66,6 +66,7 @@ export default function TrackReport() {
 
     const handleSubmit = async (event) => {
         event.preventDefault();
+        if (isLoading) return;
         await findIncident(trackingId);
     };
 

@@ -108,8 +108,19 @@ const incidentSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Reported', 'Under Review', 'Investigating', 'Resolved', 'Closed'],
+      enum: [
+        'Reported',
+        'Under Review',
+        'Investigating',
+        'Resolved',
+        'Closed',
+        'OPEN',
+        'IN_PROGRESS',
+        'CONTAINED',
+        'CLOSED',
+      ],
       default: 'Reported',
+      index: true,
     },
     priority: {
       type: String,
@@ -117,6 +128,11 @@ const incidentSchema = new mongoose.Schema(
       default: 'MEDIUM',
     },
     assignedTo: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    reportedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       default: null,

@@ -84,6 +84,7 @@ const seedDatabase = async () => {
       mimeType: 'message/rfc822',
       sha256Hash: hashes.sha256,
       md5Hash: hashes.md5,
+      uploadedBy: investigator._id,
     });
 
     incident.evidenceFiles.push(evidenceFile._id);
@@ -142,6 +143,7 @@ const seedDatabase = async () => {
       mimeType: 'image/jpeg',
       sha256Hash: scamHashes.sha256,
       md5Hash: scamHashes.md5,
+      uploadedBy: investigator._id,
     });
 
     scamIncident.evidenceFiles.push(scamEvidence._id);

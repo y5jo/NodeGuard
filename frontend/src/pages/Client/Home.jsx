@@ -6,7 +6,7 @@ import trackReportImage from "../../public/Tracklogo.svg";
 import warning1 from "../../public/warning info 1.svg";
 import warning2 from "../../public/warning info 2.svg";
 import warning3 from "../../public/warning info 3.svg";
-import warning from "../../public/warning icon.svg";
+import warning from "../../public/warning Icon.svg";
 import CHEVRON_ICON_URL from "../../public/chev.png";
 import QUESTION_ICON_URL from "../../public/question.png";
 

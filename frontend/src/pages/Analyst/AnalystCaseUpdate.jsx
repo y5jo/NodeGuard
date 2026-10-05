@@ -153,6 +153,7 @@ export default function AnalystCaseUpdate({ showHeader = true }) {
 
   const handleSubmit = (event) => {
     event.preventDefault();
+    if (isLoading) return;
     loadIncident(caseId);
   };
 
@@ -233,6 +234,15 @@ export default function AnalystCaseUpdate({ showHeader = true }) {
   };
 
   const closeEvidencePreview = () => setEvidencePreview(null);
+
+  useEffect(() => {
+    if (!evidencePreview) return;
+    const handleEscape = (event) => {
+      if (event.key === "Escape") closeEvidencePreview();
+    };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [evidencePreview]);
 
   const verifyEvidenceFiles = async () => {
     const files = incident?.evidenceFiles || [];

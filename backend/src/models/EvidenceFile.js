@@ -42,6 +42,7 @@ const evidenceFileSchema = new mongoose.Schema(
       type: String,
       enum: ['not-verified', 'verifying', 'verified', 'mismatch', 'error'],
       default: 'not-verified',
+      index: true,
     },
     verificationDetails: {
       type: String,
@@ -52,6 +53,12 @@ const evidenceFileSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+      index: true,
+    },
     uploadedAt: {
       type: Date,
       default: Date.now,
@@ -61,6 +68,8 @@ const evidenceFileSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+evidenceFileSchema.index({ incidentId: 1, createdAt: -1 });
 
 const EvidenceFile = mongoose.model('EvidenceFile', evidenceFileSchema);
 

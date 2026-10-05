@@ -17,7 +17,6 @@ export default function AnalystDashboard({ showHeader = true, showInspect = true
 	const [assignmentIncident, setAssignmentIncident] = useState(null);
 	const [assigningAnalystId, setAssigningAnalystId] = useState("");
 	const [assignmentError, setAssignmentError] = useState("");
-	const [assignmentMessage, setAssignmentMessage] = useState("");
 
 	const loadIncidents = useCallback(async () => {
 		setIsLoading(true);
@@ -49,16 +48,23 @@ export default function AnalystDashboard({ showHeader = true, showInspect = true
 		if (adminMode) loadAnalysts();
 	}, [adminMode, loadAnalysts]);
 
+	useEffect(() => {
+		if (!assignmentIncident) return;
+		const handleEscape = (event) => {
+			if (event.key === "Escape") setAssignmentIncident(null);
+		};
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [assignmentIncident]);
+
 	const assignIncident = async (analystId) => {
 		if (!assignmentIncident || assigningAnalystId) return;
 		setAssigningAnalystId(analystId);
 		setAssignmentError("");
-		setAssignmentMessage("");
 		try {
-			const response = await axiosClient.patch(`/incidents/${assignmentIncident._id}/assign`, { analystId });
-			setAssignmentIncident(response.data.incident);
-			setAssignmentMessage("Case assigned successfully.");
+			await axiosClient.patch(`/incidents/${assignmentIncident._id}/assign`, { analystId });
 			await Promise.all([loadIncidents(), loadAnalysts()]);
+			setAssignmentIncident(null);
 		} catch (requestError) {
 			setAssignmentError(requestError.response?.data?.message || "Unable to assign this case.");
 		} finally {
@@ -145,7 +151,27 @@ export default function AnalystDashboard({ showHeader = true, showInspect = true
 									<td><span className={`badge status-${String(incident.status).toLowerCase().replaceAll(" ", "-")}`}>{incident.status}</span></td>
 									<td>{incident.complainantName || "Anonymous"}</td><td>{formatDate(incident.incidentDate)}</td>
 					{showInspect && <td><button type="button" className="view-case-button" onClick={() => navigate(`/analyst/case-update?trackingId=${encodeURIComponent(incident.trackingId)}`)}><Eye size={15} aria-hidden="true" />Inspect</button></td>}
-					{adminMode && <td><button type="button" className="view-case-button" onClick={() => { setAssignmentIncident(incident); setAssignmentError(""); setAssignmentMessage(""); }}><UserRound size={15} aria-hidden="true" />{incident.assignedTo ? "Assigned" : "Assign"}</button></td>}
+					{adminMode && (() => {
+						const isAssigned = Boolean(incident.assignedTo && (typeof incident.assignedTo === 'object' ? incident.assignedTo.name : true));
+						return (
+							<td>
+								<button
+									type="button"
+									className="view-case-button"
+									onClick={() => {
+										setAssignmentIncident({
+											...incident,
+											assignedTo: isAssigned ? incident.assignedTo : null,
+										});
+										setAssignmentError("");
+									}}
+								>
+									<UserRound size={15} aria-hidden="true" />
+									{isAssigned ? "Assigned" : "Assign"}
+								</button>
+							</td>
+						);
+					})()}
 								</tr>)}
 							</tbody>
 						</table>
@@ -156,25 +182,26 @@ export default function AnalystDashboard({ showHeader = true, showInspect = true
 			</main>
 			{adminMode && assignmentIncident && <div className="assignment-backdrop" onClick={() => setAssignmentIncident(null)}>
 				<section className="assignment-dialog" role="dialog" aria-modal="true" aria-labelledby="assignment-title" onClick={(event) => event.stopPropagation()}>
-					<p className="eyebrow">{assignmentIncident.assignedTo ? "Current assignment" : "Case assignment"}</p>
-					<h2 id="assignment-title">{assignmentIncident.assignedTo ? `Assigned analyst for ${assignmentIncident.trackingId}` : `Assign ${assignmentIncident.trackingId}`}</h2>
+					<p className="eyebrow">{assignmentIncident.assignedTo ? "Reassign case" : "Case assignment"}</p>
+					<h2 id="assignment-title">{assignmentIncident.assignedTo ? `Reassign ${assignmentIncident.trackingId}` : `Assign ${assignmentIncident.trackingId}`}</h2>
 					<p className="assignment-case-title">{assignmentIncident.title}</p>
-					{assignmentIncident.assignedTo && <article className="analyst-assignment-row assigned-analyst-summary">
-						<div className="analyst-assignment-person"><strong>{assignmentIncident.assignedTo.name}</strong><small>{assignmentIncident.assignedTo.email}</small></div>
-						<span className="assignment-current-label">Assigned</span>
-					</article>}
 					{assignmentError && <p className="assignment-feedback assignment-feedback-error" role="alert">{assignmentError}</p>}
-					{assignmentMessage && <p className="assignment-feedback assignment-feedback-success" role="status">{assignmentMessage}</p>}
-					{!assignmentIncident.assignedTo && <div className="analyst-assignment-list">
-						{analysts.map((analyst) => <article className="analyst-assignment-row" key={analyst._id || analyst.id}>
-							<div className="analyst-assignment-person"><strong>{analyst.name}</strong><small>{analyst.email}</small></div>
-							<span className="analyst-case-count" aria-label={`${analyst.assignedCaseCount || 0} assigned cases`}><strong>{analyst.assignedCaseCount || 0}</strong><small>cases</small></span>
-							<button type="button" className="view-case-button" disabled={Boolean(assigningAnalystId)} onClick={() => assignIncident(analyst._id || analyst.id)}>
-								{assigningAnalystId === (analyst._id || analyst.id) ? "Assigning..." : "Assign"}
-							</button>
-						</article>)}
+					<div className="analyst-assignment-list">
+						{analysts.map((analyst) => {
+							const analystId = analyst._id || analyst.id;
+							const isCurrent = assignmentIncident.assignedTo && String(assignmentIncident.assignedTo._id || assignmentIncident.assignedTo) === String(analystId);
+							return <article className="analyst-assignment-row" key={analystId}>
+								<div className="analyst-assignment-person"><strong>{analyst.name}</strong><small>{analyst.email}</small></div>
+								<span className="analyst-case-count" aria-label={`${analyst.assignedCaseCount || 0} assigned cases`}><strong>{analyst.assignedCaseCount || 0}</strong><small>cases</small></span>
+								{isCurrent
+									? <span className="assignment-current-label">Current Assignee</span>
+									: <button type="button" className="view-case-button" disabled={Boolean(assigningAnalystId)} onClick={() => assignIncident(analystId)}>
+										{assigningAnalystId === analystId ? "Assigning..." : "Assign"}
+									  </button>}
+							</article>;
+						})}
 						{analysts.length === 0 && <p className="assignment-empty">No active analysts are available.</p>}
-					</div>}
+					</div>
 				</section>
 			</div>}
 		</>

@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
 
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey_change_in_production';
+
 export const verifyToken = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -11,10 +13,9 @@ export const verifyToken = (req, res, next) => {
   }
 
   const token = authHeader.split(' ')[1];
-  const secret = process.env.JWT_SECRET || 'supersecretjwtkey_change_in_production';
 
   try {
-    const decoded = jwt.verify(token, secret);
+    const decoded = jwt.verify(token, JWT_SECRET);
     req.user = {
       id: decoded.id,
       role: decoded.role,
@@ -34,20 +35,12 @@ export const requireRole = (roles) => {
   const allowedRoles = Array.isArray(roles) ? roles : [roles];
 
   return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required.',
-      });
-    }
-
-    if (!allowedRoles.includes(req.user.role)) {
+    if (!req.user || !allowedRoles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `Forbidden: requires one of the following roles: [${allowedRoles.join(', ')}]`,
+        message: 'Access denied. Insufficient role permissions.',
       });
     }
-
     next();
   };
 };

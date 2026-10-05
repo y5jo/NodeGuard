@@ -30,10 +30,13 @@ export default function UserManament() {
 	const [isProvisionModalOpen, setProvisionModalOpen] = useState(false);
 	const [entries, setEntries] = useState([]);
 	const [provisionError, setProvisionError] = useState("");
+	const [isProvisioningStaff, setIsProvisioningStaff] = useState(false);
 	const [removeError, setRemoveError] = useState("");
 	const [removingStaffId, setRemovingStaffId] = useState("");
+	const [isLoadingStaff, setIsLoadingStaff] = useState(true);
 
 	useEffect(() => {
+		setIsLoadingStaff(true);
 		axiosClient.get("/auth/users").then((res) => {
 			const users = res.data.users || [];
 			setEntries(users.map((u) => ({
@@ -43,11 +46,14 @@ export default function UserManament() {
 				role: u.role === "ADMIN" ? "Admin" : "Investigator",
 				time: new Date(u.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
 			})));
-		}).catch(() => {});
+		}).catch(() => {})
+		.finally(() => setIsLoadingStaff(false));
 	}, []);
 
 	const handleStaffSave = async (staff) => {
+		if (isProvisioningStaff) return;
 		setProvisionError("");
+		setIsProvisioningStaff(true);
 		try {
 			const res = await axiosClient.post("/auth/register", {
 				name: staff.name,
@@ -60,6 +66,8 @@ export default function UserManament() {
 			setProvisionModalOpen(false);
 		} catch (err) {
 			setProvisionError(err.response?.data?.message || "Failed to provision staff account.");
+		} finally {
+			setIsProvisioningStaff(false);
 		}
 	};
 
@@ -129,6 +137,7 @@ export default function UserManament() {
 							entries={entries}
 							onRemove={handleStaffRemove}
 							removingStaffId={removingStaffId}
+							isLoading={isLoadingStaff}
 						/>
 						<div className="user-management-note">
 							<div className="user-management-note-title">
@@ -143,6 +152,7 @@ export default function UserManament() {
 					isOpen={isProvisionModalOpen}
 					onSave={handleStaffSave}
 					serverError={provisionError}
+					isSubmitting={isProvisioningStaff}
 					onClose={() => { setProvisionModalOpen(false); setProvisionError(""); }}
 				/>
 			</div>

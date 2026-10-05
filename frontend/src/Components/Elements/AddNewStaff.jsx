@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import '../design/Admin/AddNewStaffModal.css';
 
 export const PROVISION_STAFF_HEADER = {
@@ -15,7 +15,16 @@ export const PROVISION_STAFF_FIELDS = [
 const DEFAULT_ROLE = 'Investigator';
 const USERNAME_PATTERN = /^[a-zA-Z0-9._-]+$/;
 
-export function ProvisionStaffModal({ isOpen, onSave, onClose, serverError }) {
+export function ProvisionStaffModal({ isOpen, onSave, onClose, serverError, isSubmitting = false }) {
+	useEffect(() => {
+		if (!isOpen) return;
+		const handleEscape = (event) => {
+			if (event.key === 'Escape') onClose();
+		};
+		document.addEventListener('keydown', handleEscape);
+		return () => document.removeEventListener('keydown', handleEscape);
+	}, [isOpen, onClose]);
+
 	const [values, setValues] = useState(() =>
 		Object.fromEntries(PROVISION_STAFF_FIELDS.map((f) => [f.name, '']))
 	);
@@ -29,7 +38,7 @@ export function ProvisionStaffModal({ isOpen, onSave, onClose, serverError }) {
 
 	const submit = (e) => {
 		e.preventDefault();
-		if (!isValid) return;
+		if (!isValid || isSubmitting) return;
 		onSave({
 			name: values.name.trim(),
 			username,
@@ -99,7 +108,9 @@ export function ProvisionStaffModal({ isOpen, onSave, onClose, serverError }) {
 					))}
 					<div className="psm-footer">
 						{serverError && <p role="alert" style={{ color: "var(--color-error, #f87171)", marginBottom: 8, fontSize: "0.85rem" }}>{serverError}</p>}
-						<button type="submit" className="psm-save" disabled={!isValid}>Add New Staff</button>
+						<button type="submit" className="psm-save" disabled={!isValid || isSubmitting}>
+							{isSubmitting ? 'Provisioning...' : 'Add New Staff'}
+						</button>
 					</div>
 				</form>
 			</div>

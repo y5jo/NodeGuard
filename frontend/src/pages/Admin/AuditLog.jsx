@@ -39,6 +39,12 @@ const ACTION_BADGES = {
     STATUS_CHANGE: {
         label: 'Status Change', color: '#fbbf24', border: 'rgba(245,158,11,0.3)', bg: 'rgba(245,158,11,0.1)',
     },
+    CASE_ASSIGNMENT: {
+        label: 'Case Assignment', color: '#c084fc', border: 'rgba(192,132,252,0.3)', bg: 'rgba(192,132,252,0.1)',
+    },
+    CUSTODY_TRANSFER: {
+        label: 'Custody Transfer', color: '#a855f7', border: 'rgba(168,85,247,0.3)', bg: 'rgba(168,85,247,0.1)',
+    },
 };
 
 export const ROLE_BADGES = {
@@ -90,9 +96,11 @@ export default function AuditLog({
     const [liveEntries, setLiveEntries] = useState(null);
     const [liveIncidentOptions, setLiveIncidentOptions] = useState(null);
     const [fetchError, setFetchError] = useState(null);
+    const [isLoading, setIsLoading] = useState(true);
     const panelRef = useRef(null);
 
     useEffect(() => {
+        setIsLoading(true);
         axiosClient.get('/incidents/audit')
             .then(({ data }) => {
                 setLiveEntries(data.entries);
@@ -101,6 +109,9 @@ export default function AuditLog({
             .catch((err) => {
                 setLiveEntries([]);
                 setFetchError(err?.response?.data?.message || 'Failed to load audit log entries.');
+            })
+            .finally(() => {
+                setIsLoading(false);
             });
     }, []);
 
@@ -125,12 +136,14 @@ export default function AuditLog({
         const onDocClick = (event) => {
             if (panelRef.current && !panelRef.current.contains(event.target)) {
                 setShowFilters(false);
+                setOpenDatePicker(null);
             }
         };
 
         const onKey = (event) => {
             if (event.key === 'Escape') {
                 setShowFilters(false);
+                setOpenDatePicker(null);
             }
         };
 
@@ -142,6 +155,31 @@ export default function AuditLog({
             document.removeEventListener('keydown', onKey);
         };
     }, [showFilters]);
+
+    useEffect(() => {
+        if (!openDatePicker) return;
+
+        const onOutsideClick = (event) => {
+            if (!event.target.closest('.audit-filter-date-control')) {
+                setOpenDatePicker(null);
+            }
+        };
+
+        const onKey = (event) => {
+            if (event.key === 'Escape') {
+                event.stopPropagation();
+                setOpenDatePicker(null);
+            }
+        };
+
+        document.addEventListener('mousedown', onOutsideClick);
+        document.addEventListener('keydown', onKey);
+
+        return () => {
+            document.removeEventListener('mousedown', onOutsideClick);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [openDatePicker]);
 
     const filteredEntries = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase();
@@ -277,6 +315,8 @@ export default function AuditLog({
                         <div className="audit-log-body">
                             {fetchError ? (
                                 <p className="audit-empty">{fetchError}</p>
+                            ) : isLoading ? (
+                                <p className="audit-empty">Loading Chain of Custody records...</p>
                             ) : filteredEntries.length === 0 ? (
                                 <p className="audit-empty">No Chain of Custody records found.</p>
                             ) : (

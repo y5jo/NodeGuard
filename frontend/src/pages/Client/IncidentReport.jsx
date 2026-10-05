@@ -4,7 +4,7 @@ import { CalendarDays, Check, CheckCircle2, Copy, FileUp, ShieldAlert, UploadClo
 import axiosClient from "../../api/axiosClient";
 import { useNavigate } from "react-router-dom";
 import "../../Components/design/client/IncidentReport.css";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export default function IncidentReport() {
   const navigate = useNavigate();
@@ -37,11 +37,25 @@ export default function IncidentReport() {
         setIsCalendarOpen(false);
       }
     };
+    const handleEscape = (event) => { if (event.key === "Escape") setIsCalendarOpen(false); };
 
     document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleEscape);
 
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleEscape);
+    };
   }, [isCalendarOpen]);
+
+  const closeSuccessDialog = useCallback(() => setIsSuccessDialogOpen(false), []);
+
+  useEffect(() => {
+    if (!isSuccessDialogOpen) return undefined;
+    const handleEscape = (event) => { if (event.key === "Escape") closeSuccessDialog(); };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [isSuccessDialogOpen, closeSuccessDialog]);
 
   useEffect(() => {
     if (!previewFile) {
@@ -55,6 +69,13 @@ export default function IncidentReport() {
     return () => URL.revokeObjectURL(objectUrl);
   }, [previewFile]);
 
+  useEffect(() => {
+    if (!previewFile) return undefined;
+    const handleEscape = (event) => { if (event.key === "Escape") setPreviewFile(null); };
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [previewFile]);
+
   const formatIncidentDate = (dateValue) => {
     if (!dateValue) return "";
 
@@ -64,6 +85,7 @@ export default function IncidentReport() {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (isSubmitting) return;
     setSubmitError("");
 
     const missingFields = Array.from(event.currentTarget.querySelectorAll("[data-required-field]"))
@@ -272,6 +294,7 @@ export default function IncidentReport() {
                         setIncidentDate(dateValue);
                         setIncidentDateError("");
                         clearFieldError("incidentDate");
+                        setIsCalendarOpen(false);
                       }}
                     />
                   </div>
@@ -495,13 +518,14 @@ export default function IncidentReport() {
       </main>
 
       {isSuccessDialogOpen && (
-        <div className="report-success-backdrop">
+        <div className="report-success-backdrop" onClick={closeSuccessDialog}>
           <section
             className="report-success-dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="report-success-title"
             aria-describedby="report-success-message"
+            onClick={(event) => event.stopPropagation()}
           >
             <div className="report-success-icon">
               <CheckCircle2 size={28} />
