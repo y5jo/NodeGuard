@@ -95,12 +95,18 @@
 }
 
 .textarea-input {
-  overflow-y: hidden;
+  overflow-y: auto;
   resize: none;
   min-height: 126px;
   padding-top: 14px;
   padding-bottom: 14px;
   border-radius: 18px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.textarea-input::-webkit-scrollbar {
+  display: none;
 }
 
 .two-col {
